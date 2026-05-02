@@ -1,11 +1,11 @@
-# 🚀 System Engineer Internship Workspace - Nhan Hoa Group
+#  System Engineer Internship Workspace - Nhan Hoa Group
 
-Chào mừng đến với Repository lưu trữ toàn bộ tài liệu, script và tiến độ thực tập của mình tại **Nhân Hòa Group**. Repo này đóng vai trò như một cuốn nhật ký kỹ thuật, ghi lại quá trình tìm hiểu, cấu hình và triển khai các hệ thống từ cơ bản đến nâng cao dưới sự hướng dẫn của các mentor.
+Repository lưu trữ toàn bộ tài liệu, script và tiến độ thực tập của mình tại **Nhân Hòa Group**. Repo này đóng vai trò như một cuốn nhật ký kỹ thuật, ghi lại quá trình tìm hiểu, cấu hình và triển khai các hệ thống từ cơ bản đến nâng cao dưới sự hướng dẫn của các mentor.
 
 **👨‍💻 Thực tập sinh:** Nguyễn Tiến Đông  
-**🏢 Vị trí:** System Engineer Intern  
+**🏢 Vị trí:** Intern  
 **📅 Thời gian báo cáo hàng ngày:** 17h30 
-**📩 Mentors:** `duydm@`, `lampk@`, `annt@`, `anvt@`, `chinhtran@` (nhanhoa.com.vn)
+
 
 ---
 
@@ -75,5 +75,6 @@ Dưới đây là chi tiết các hạng mục công việc và kiến thức đ
 - [x] **Network Analysis & Troubleshooting:** - Cài đặt và thực hành kiểm tra gói tin mạng bằng `tcpdump` và `Wireshark`.
   - Quản lý bản vá hệ thống tự động (APT).
 
+............................
 ---
-*Repo này được cập nhật liên tục hàng ngày để báo cáo tiến độ và lưu trữ các đoạn code/script cấu hình phục vụ cho công việc tại lab Nhân Hòa.*
+
