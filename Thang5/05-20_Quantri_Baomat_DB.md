@@ -228,75 +228,80 @@ nv báo cáo không thể thực hiện lệnh phần này và báo lỗi
 - **1** bản lưu ở nơi khác (offsite)
 
 ---
+Đây là bản kết hợp: vừa giữ được sự ngắn gọn của lý thuyết, vừa chèn thêm các câu lệnh cốt lõi làm ví dụ minh họa để báo cáo của bạn có chiều sâu thực tế.
 
-### 2.2 Công cụ Backup trong MySQL
+---
 
-**a) mysqldump – Logical Backup**
+### 2.2. Các công cụ và phương pháp Backup trong MySQL
+
+Trong quản trị cơ sở dữ liệu MySQL, có 3 công cụ và chiến lược chính thường được sử dụng tùy thuộc vào quy mô hệ thống và yêu cầu phục hồi:
+
+#### a) `mysqldump` – Logical Backup (Sao lưu Logic)
+
+**Khái niệm:**
+Đây là công cụ mặc định phổ biến nhất. Cơ chế của nó không copy file vật lý mà đọc dữ liệu từ DB, sau đó sinh ra một file văn bản chứa các câu lệnh SQL (`CREATE TABLE`, `INSERT INTO`...).
+
+**Đặc điểm:**
+Linh hoạt, dễ nén để tiết kiệm dung lượng lưu trữ, nhưng tốc độ chậm (vì chỉ xử lý đơn luồng), phù hợp với hệ thống vừa và nhỏ.
+
+**Các câu lệnh minh họa phổ biến:**
 
 ```bash
-# Backup toàn bộ database
+# Backup toàn bộ database (kèm theo tự động đặt ngày tháng vào tên file)
 mysqldump -u root -p demo_sales > backup_sales_$(date +%Y%m%d).sql
 
-# Backup nhiều database
-mysqldump -u root -p --databases demo_sales another_db > backup_multi.sql
+# Nén backup ngay trong lúc xuất dữ liệu (tiết kiệm dung lượng)
+mysqldump -u root -p demo_sales | gzip > backup_sales.sql.gz
 
-# Backup tất cả database
-mysqldump -u root -p --all-databases > backup_all.sql
-
-# Backup chỉ cấu trúc (không có dữ liệu)
+# Tùy chọn: Chỉ backup cấu trúc (không lấy dữ liệu)
 mysqldump -u root -p --no-data demo_sales > structure_only.sql
 
-# Backup chỉ dữ liệu (không có cấu trúc)
-mysqldump -u root -p --no-create-info demo_sales > data_only.sql
-
-# Nén backup
-mysqldump -u root -p demo_sales | gzip > backup_sales.sql.gz
 ```
 
-**b) mysqlpump – Parallel Backup (MySQL 5.7+)**
+#### b) `mysqlpump` – Parallel Backup (Sao lưu Song song)
+
+**Khái niệm:**
+Được giới thiệu từ MySQL 5.7, công cụ này khắc phục điểm yếu tốc độ của `mysqldump` trên các hệ thống lớn bằng cách áp dụng cơ chế xử lý song song.
+
+**Đặc điểm:**
+Giảm đáng kể thời gian backup nhờ mở nhiều luồng (threads) cùng lúc. Tuy nhiên, từ bản MySQL 8.0.34, công cụ này bị đánh dấu lỗi thời (Deprecated) và dần được thay thế bởi *MySQL Shell Dump*.
+
+**Câu lệnh minh họa:**
 
 ```bash
-# Backup song song, nhanh hơn với DB lớn
+# Backup chia ra 4 luồng xử lý song song để tăng tốc
 mysqlpump -u root -p --parallel-schemas=4 demo_sales > backup_pump.sql
+
 ```
 
-**c) Binary Log – Point-in-Time Recovery**
+#### c) Binary Log – Point-in-Time Recovery (Phục hồi theo thời điểm)
+
+**Khái niệm:**
+Để khắc phục lỗ hổng mất dữ liệu giữa các chu kỳ backup định kỳ, MySQL sử dụng Binary Log (Binlog). Đây là tệp nhật ký ghi lại mọi thao tác làm thay đổi dữ liệu (`INSERT`, `UPDATE`, `DELETE`) theo thời gian thực.
+
+**Đặc điểm:**
+Cho phép kết hợp bản backup gần nhất với file Binlog để khôi phục dữ liệu về đúng thời điểm trước khi xảy ra sự cố (đến từng giây). Đây là tính năng bắt buộc cho các hệ thống Production.
+
+**Câu lệnh minh họa:**
 
 ```sql
--- Kiểm tra binary log có bật không
+-- Kiểm tra xem tính năng ghi nhật ký có đang được bật (ON) hay không
 SHOW VARIABLES LIKE 'log_bin';
 
--- Xem danh sách binary log files
+-- Xem danh sách các file nhật ký hiện có trên server
 SHOW BINARY LOGS;
 
--- Xem nội dung binary log
+-- Đọc nội dung file log để truy vết các thao tác thay đổi dữ liệu
 SHOW BINLOG EVENTS IN 'mysql-bin.000001' LIMIT 20;
+
 ```
-
----
-
-### 2.3 Phục hồi dữ liệu
-
-```bash
-# Phục hồi từ file SQL dump
-mysql -u root -p demo_sales < backup_sales_20241201.sql
-
-# Phục hồi từ file nén
-gunzip -c backup_sales.sql.gz | mysql -u root -p demo_sales
-
-# Point-in-Time Recovery (phục hồi đến thời điểm cụ thể)
-mysqlbinlog --start-datetime="2024-12-01 08:00:00" \
-            --stop-datetime="2024-12-01 10:00:00" \
-            /var/lib/mysql/mysql-bin.000001 | mysql -u root -p
-```
-
----
-
 ### 2.4 Demo thực hành
 
 > **Kịch bản:** Backup database → Xóa nhầm dữ liệu → Phục hồi.
 
 **Bước 1 – Tạo backup**
+trước tiên tạo một bảng data
+<img width="766" height="648" alt="image" src="https://github.com/user-attachments/assets/6269864b-ba68-4329-a256-be2fa29df372" />
 
 ```bash
 mysqldump -u root -p demo_sales > backup_demo_sales.sql
@@ -308,6 +313,7 @@ Kiểm tra file đã tạo:
 ls -lh backup_demo_sales.sql
 head -50 backup_demo_sales.sql
 ```
+<img width="1481" height="776" alt="image" src="https://github.com/user-attachments/assets/cfcb1528-5372-4986-b69c-66ce5c567b8b" />
 
 **Bước 2 – Giả lập sự cố (xóa dữ liệu)**
 
@@ -316,6 +322,9 @@ USE demo_sales;
 DELETE FROM products WHERE id > 0;   -- Xóa toàn bộ dữ liệu
 SELECT COUNT(*) FROM products;        -- Kết quả: 0
 ```
+<img width="853" height="274" alt="image" src="https://github.com/user-attachments/assets/e74c94f2-f3f6-4cbf-a315-04bad2c2f049" />
+
+<img width="700" height="285" alt="image" src="https://github.com/user-attachments/assets/e76a73b0-2dae-4569-87df-80ba09f7fec4" />
 
 **Bước 3 – Phục hồi**
 
@@ -328,10 +337,10 @@ mysql -u root -p demo_sales < backup_demo_sales.sql
 ```sql
 USE demo_sales;
 SELECT * FROM products;
--- Kết quả: dữ liệu đã trở lại đầy đủ
+-- 
 ```
-
-📸 **Chụp màn hình:** File backup đã tạo, bảng rỗng sau khi xóa, và `SELECT *` sau khi phục hồi thành công.
+<img width="994" height="834" alt="image" src="https://github.com/user-attachments/assets/95201182-eccc-43a6-a82d-3458b8b6e024" />
+Kết quả: dữ liệu đã trở lại đầy đủ
 
 ---
 
@@ -350,79 +359,92 @@ SELECT * FROM products;
 
 ---
 
-### 3.2 Công cụ monitoring
+Dưới đây là bản viết lại theo phong cách báo cáo lý thuyết và tìm hiểu. Cấu trúc được làm gọn lại, giải thích rõ "Nó là gì?", "Dùng để làm gì?" và kèm theo các câu lệnh minh họa cốt lõi nhất.
 
-**a) Truy vấn thông tin hệ thống trực tiếp (MySQL)**
+---
+
+### 3.2. Các công cụ và phương pháp Giám sát (Monitoring) trong MySQL
+
+Việc giám sát (Monitoring) giúp Quản trị viên (DBA) nắm bắt được "sức khỏe" của Database Server theo thời gian thực, từ đó phát hiện sớm tình trạng quá tải, nghẽn cổ chai (bottleneck) hoặc các truy vấn kém hiệu quả để có phương án tối ưu kịp thời. MySQL cung cấp 3 bộ công cụ native (có sẵn) mạnh mẽ để thực hiện việc này:
+
+#### a) Truy vấn trạng thái trực tiếp (Native Status Variables)
+
+**Khái niệm:**
+MySQL tự động duy trì hàng trăm biến số (variables) lưu trữ các thống kê hoạt động kể từ lúc service khởi động. Quản trị viên có thể gọi trực tiếp các biến này bằng lệnh `SHOW` để xem tình trạng hiện tại.
+
+**Đặc điểm & Ứng dụng:**
+
+* Nhanh, nhẹ, không gây thêm tải cho server.
+* Thường dùng để kiểm tra ngay lập tức các "chỉ số sống còn" (Vital signs) như: Hệ thống đang có bao nhiêu kết nối (Connections)? Cache RAM (Buffer Pool) hoạt động có hiệu quả không? Hay có tiến trình nào đang bị treo (treo session) hay không.
+
+**Các câu lệnh minh họa:**
 
 ```sql
--- Xem trạng thái tổng thể
-SHOW GLOBAL STATUS;
-SHOW GLOBAL VARIABLES;
-
--- Kiểm tra connections
+-- 1. Kiểm tra số lượng kết nối đang mở
 SHOW STATUS LIKE 'Threads_connected';
-SHOW STATUS LIKE 'Max_used_connections';
 
--- Kiểm tra số query thực hiện
-SHOW STATUS LIKE 'Queries';
-SHOW STATUS LIKE 'Com_select';
-SHOW STATUS LIKE 'Com_insert';
-
--- Buffer pool hit rate (InnoDB)
+-- 2. Đánh giá hiệu quả dùng RAM của InnoDB (Hit Rate càng gần 100% càng tốt)
 SHOW STATUS LIKE 'Innodb_buffer_pool_read_requests';
 SHOW STATUS LIKE 'Innodb_buffer_pool_reads';
--- Hit rate = (read_requests - reads) / read_requests * 100
 
--- Xem các process đang chạy
+-- 3. Xem danh sách tất cả các tiến trình/truy vấn đang chạy ngay lúc này
 SHOW FULL PROCESSLIST;
 
--- Kill một process đang treo
-KILL QUERY 123;   -- Kill query, giữ kết nối
-KILL 123;         -- Kill cả kết nối
+-- 4. Ép buộc đóng một tiến trình đang bị treo (ví dụ ID là 123)
+KILL 123;
+
 ```
 
-**b) Performance Schema**
+#### b) Performance Schema (Giám sát hiệu suất chuyên sâu)
+
+**Khái niệm:**
+Được kích hoạt mặc định từ MySQL 5.6 trở lên, `Performance Schema` là một engine đặc biệt chuyên giám sát các sự kiện hệ thống ở mức độ vi mô (low-level) bên trong MySQL.
+
+**Đặc điểm & Ứng dụng:**
+
+* Nó tổ chức các dữ liệu giám sát dưới dạng các "bảng" (tables) để DBA có thể dùng chính lệnh `SELECT` để truy vấn thống kê.
+* Cực kỳ đắc lực khi cần phân tích chuyên sâu tìm nguyên nhân gốc rễ (Root Cause Analysis): Tìm xem bảng nào đang bị khóa (lock) nhiều nhất, tài nguyên CPU bị ngốn vào khâu nào.
+
+**Các câu lệnh minh họa:**
 
 ```sql
--- Bật Performance Schema (mysql 5.6+, mặc định bật)
+-- Kiểm tra xem Performance Schema có đang được bật hay không
 SHOW VARIABLES LIKE 'performance_schema';
 
--- Top 10 slow queries
+-- Tìm top 10 câu lệnh SQL có thời gian chạy trung bình lâu nhất
 SELECT DIGEST_TEXT, COUNT_STAR, AVG_TIMER_WAIT/1e12 AS avg_sec
 FROM performance_schema.events_statements_summary_by_digest
 ORDER BY AVG_TIMER_WAIT DESC
 LIMIT 10;
 
--- Các table đang bị lock nhiều nhất
-SELECT OBJECT_NAME, COUNT_READ, COUNT_WRITE, COUNT_FETCH
-FROM performance_schema.table_lock_waits_summary_by_table
-ORDER BY COUNT_WRITE DESC
-LIMIT 10;
 ```
 
-**c) Slow Query Log**
+#### c) Slow Query Log (Nhật ký truy vấn chậm)
+
+**Khái niệm:**
+Đúng như tên gọi, đây là một tính năng cấu hình cho phép MySQL tự động ghi chép lại (log) tất cả những câu lệnh SQL có thời gian thực thi vượt quá một ngưỡng quy định (Ví dụ: chạy quá 1 giây).
+
+**Đặc điểm & Ứng dụng:**
+
+* Là công cụ gối đầu giường để thực hiện Tối ưu hóa truy vấn (Query Optimization).
+* Developer hoặc DBA sẽ gom file log này lại định kỳ, dùng tool phân tích để tìm ra những câu lệnh kém hiệu quả nhất, từ đó tiến hành đánh chỉ mục (Index) hoặc viết lại code cho tối ưu.
+
+**Các lệnh thao tác và phân tích:**
 
 ```sql
--- Bật slow query log
+-- Kích hoạt cấu hình ghi log trực tiếp mà không cần khởi động lại MySQL
 SET GLOBAL slow_query_log = 'ON';
-SET GLOBAL long_query_time = 1;        -- log query > 1 giây
+SET GLOBAL long_query_time = 1; -- Cứ lệnh nào chạy > 1 giây thì ghi lại
 SET GLOBAL slow_query_log_file = '/var/log/mysql/slow.log';
 
--- Kiểm tra cấu hình
-SHOW VARIABLES LIKE 'slow_query%';
-SHOW VARIABLES LIKE 'long_query_time';
 ```
 
-Phân tích file slow query log:
 
 ```bash
-# Dùng mysqldumpslow để phân tích
+# Sử dụng công cụ mysqldumpslow để trích xuất Top 10 câu lệnh chậm nhất từ file log
 mysqldumpslow -s t -t 10 /var/log/mysql/slow.log
-# -s t: sắp xếp theo thời gian
-# -t 10: top 10 query
-```
 
----
+```
 
 ### 3.3 Demo thực hành
 
@@ -435,6 +457,9 @@ SET GLOBAL slow_query_log = 'ON';
 SET GLOBAL long_query_time = 0;   -- Log mọi query (để test)
 SHOW VARIABLES LIKE 'slow_query_log_file';
 ```
+<img width="1061" height="854" alt="image" src="https://github.com/user-attachments/assets/c20bcc1c-50c4-45eb-b709-071434fcc169" />
+
+/var/lib/mysql/dong-slow.log 
 
 **Bước 2 – Tạo dữ liệu lớn để test**
 
@@ -463,6 +488,7 @@ DELIMITER ;
 
 CALL gen_data();
 ```
+<img width="1503" height="736" alt="image" src="https://github.com/user-attachments/assets/1e3656ee-1b25-4531-9629-6ea897a7a565" />
 
 **Bước 3 – Chạy query không có index (sẽ chậm)**
 
@@ -486,8 +512,8 @@ tail -50 /var/log/mysql/slow.log
 ```sql
 SHOW FULL PROCESSLIST;
 ```
+<img width="1497" height="671" alt="image" src="https://github.com/user-attachments/assets/49d2d528-109a-495c-9273-5e027a8e4b4e" />
 
-📸 **Chụp màn hình:** Output của `SHOW FULL PROCESSLIST` khi query đang chạy, và nội dung slow query log.
 
 ---
 
@@ -649,6 +675,7 @@ GROUP BY customer;
 SHOW PROFILES;
 -- Ghi lại thời gian query
 ```
+<img width="1535" height="437" alt="image" src="https://github.com/user-attachments/assets/1001614c-f5a8-4891-84f9-29870df34ba2" />
 
 **Bước 3 – Tạo index và so sánh**
 
@@ -664,6 +691,7 @@ GROUP BY customer;
 SHOW PROFILES;
 -- So sánh thời gian trước và sau
 ```
+<img width="1274" height="547" alt="image" src="https://github.com/user-attachments/assets/099e28da-b2da-4d7e-b461-02520258aef8" />
 
 **Bước 4 – EXPLAIN sau khi có index**
 
@@ -674,8 +702,42 @@ WHERE order_date BETWEEN '2024-01-01' AND '2024-06-30'
 GROUP BY customer;
 -- Chú ý: type = range, key = idx_order_date, rows giảm đáng kể
 ```
+thời gian đã giảm đáng kể , nhưng đó là khi đã đổi lại range truy vấn 
+Có thể thấy sau khi tạo Index, thời gian chạy thực tế (Query ID 3: 0.30s) lại LÂU HƠN lúc chưa có Index (Query ID 1: 0.28s). Và ở lệnh EXPLAIN, cột type vẫn là ALL (quét toàn bộ bảng) chứ không thèm dùng Index (key vẫn là NULL).
 
-📸 **Chụp màn hình:** Output `EXPLAIN` trước và sau index (so sánh `type`, `key`, `rows`), và `SHOW PROFILES` với thời gian thực tế.
+Nguyên nhân: Sự "thông minh" của MySQL Optimizer
+Trong MySQL có một bộ phận gọi là Query Optimizer (Bộ tối ưu hóa truy vấn). Khi bạn đưa một câu lệnh cho nó, nó sẽ phân tích xem dùng Index nhanh hơn hay quét toàn bộ bảng (Full Table Scan) nhanh hơn.
+
+Hãy nhìn vào các thông số sau trong bài lab của bạn:
+
+Bảng của bạn có khoảng 200.000 dòng (cột rows hiện 199978).
+
+Khoảng thời gian bạn tìm kiếm: BETWEEN '2024-01-01' AND '2024-06-30' (nửa năm).
+
+Cột filtered = 50.00%: Bộ tối ưu hóa dự đoán rằng kết quả thỏa mãn điều kiện thời gian này chiếm tới 50% tổng số dữ liệu của cả bảng (khoảng 100.000 dòng).
+
+Quy tắc ngầm của MySQL: Khi một truy vấn sử dụng Index mà trả về số lượng dữ liệu quá lớn (thường > 20% - 30% tổng số dòng), MySQL sẽ quyết định bỏ qua Index và chọn Full Table Scan (type = ALL).
+
+Tại sao? Bởi vì cấu trúc của Index lưu trữ theo dạng cây (B-Tree). Nếu dùng Index để đọc số lượng lớn, MySQL sẽ phải:
+
+Đọc cây Index để tìm địa chỉ dòng.
+
+Nhảy về ổ cứng đọc dữ liệu dòng đó.
+
+Lặp lại thao tác "nhảy qua nhảy lại" đó 100.000 lần (Random I/O). Việc này tốn nhiều chi phí ổ đĩa hơn rất nhiều so với việc cứ thế quét một lèo từ đầu đến cuối bảng trên ổ cứng (Sequential I/O).
+
+
+2. Chạy câu lệnh với phạm vi tìm kiếm NHỎ HƠN (ví dụ tìm trong đúng 1 ngày hoặc 1 tuần ta sẽ thấy rõ sự chênh lệch của nó ):
+
+SQL
+SELECT customer, SUM(amount)
+FROM big_orders
+WHERE order_date BETWEEN '2024-01-01' AND '2024-01-07' 
+GROUP BY customer;
+
+
+<img width="1288" height="709" alt="image" src="https://github.com/user-attachments/assets/9212fb20-104e-4dc6-bbd7-06331867657b" />
+
 
 ---
 
@@ -738,10 +800,10 @@ Isolation level quyết định mức độ cô lập giữa các transaction đ
 
 | Isolation Level | Dirty Read | Non-Repeatable Read | Phantom Read |
 |----------------|-----------|--------------------|-----------  |
-| READ UNCOMMITTED | ✅ Có thể xảy ra | ✅ Có thể | ✅ Có thể |
-| READ COMMITTED | ❌ Ngăn chặn | ✅ Có thể | ✅ Có thể |
-| REPEATABLE READ | ❌ Ngăn chặn | ❌ Ngăn chặn | ✅ Có thể |
-| SERIALIZABLE | ❌ Ngăn chặn | ❌ Ngăn chặn | ❌ Ngăn chặn |
+| READ UNCOMMITTED | Có thể xảy ra |  Có thể |  Có thể |
+| READ COMMITTED | Ngăn chặn | Có thể | Có thể |
+| REPEATABLE READ | Ngăn chặn | Ngăn chặn | Có thể |
+| SERIALIZABLE | Ngăn chặn |  Ngăn chặn | Ngăn chặn |
 
 > MySQL InnoDB mặc định dùng **REPEATABLE READ** và có cơ chế MVCC ngăn Phantom Read.
 
@@ -856,12 +918,12 @@ SET innodb_lock_wait_timeout = 5;  -- Timeout sau 5 giây chờ lock
 
 ### 5.5 Demo thực hành
 
-> **Kịch bản 1:** Mô phỏng chuyển tiền an toàn với transaction.  
-> **Kịch bản 2:** Tạo và quan sát Deadlock.
+ Mô phỏng chuyển tiền an toàn với transaction.  
+
 
 ---
 
-#### Kịch bản 1: Chuyển tiền với Transaction
+ Chuyển tiền với Transaction
 
 **Bước 1 – Chuẩn bị dữ liệu**
 
@@ -881,6 +943,7 @@ INSERT INTO accounts VALUES
 
 SELECT * FROM accounts;
 ```
+<img width="604" height="236" alt="image" src="https://github.com/user-attachments/assets/499d4377-51b0-4f32-ac50-117b21473a40" />
 
 **Bước 2 – Stored Procedure chuyển tiền an toàn**
 
@@ -923,50 +986,16 @@ CALL transfer(1, 2, 1000000);
 -- Kiểm tra kết quả
 SELECT * FROM accounts;
 -- A: 4,000,000 | B: 3,000,000
-
+```
+<img width="574" height="523" alt="image" src="https://github.com/user-attachments/assets/5678a6d5-9ec3-4c53-88d1-de3ce847f80b" />
+```
 -- Thử chuyển quá số dư
 CALL transfer(1, 2, 99999999);
 -- Kết quả: LỖI: Giao dịch đã bị hủy
 ```
-
-📸 **Chụp màn hình:** Kết quả `SELECT * FROM accounts` trước và sau chuyển tiền, và thông báo lỗi khi số dư không đủ.
-
----
-
-#### Kịch bản 2: Tạo và quan sát Deadlock
-
-> Cần mở **hai cửa sổ terminal/tab MySQL** (Session 1 và Session 2) và chạy lần lượt.
-
-```sql
--- ===== SESSION 1 (Terminal 1) =====
-USE demo_bank;
-START TRANSACTION;
-UPDATE accounts SET balance = balance - 100 WHERE id = 1;
--- Đã lock row id=1, chờ...
--- (Tiếp tục ở Session 2 trước khi chạy dòng tiếp theo)
-SELECT SLEEP(5);  -- Tạm dừng 5 giây
-UPDATE accounts SET balance = balance + 100 WHERE id = 2;
--- ← Sẽ bị block hoặc deadlock nếu Session 2 đã lock id=2
+<img width="588" height="305" alt="image" src="https://github.com/user-attachments/assets/5fea0769-3809-4c7f-8622-fa741608336b" />
 
 
--- ===== SESSION 2 (Terminal 2) =====
-USE demo_bank;
-START TRANSACTION;
-UPDATE accounts SET balance = balance - 100 WHERE id = 2;
--- Đã lock row id=2
-UPDATE accounts SET balance = balance + 100 WHERE id = 1;
--- ← Bị block vì Session 1 đang giữ lock id=1
--- → MySQL sẽ phát hiện deadlock và rollback một session
-```
-
-**Xem thông tin deadlock:**
-
-```sql
-SHOW ENGINE INNODB STATUS\G
--- Tìm phần LATEST DETECTED DEADLOCK
-```
-
-📸 **Chụp màn hình:** Thông báo deadlock trong một trong hai session, và output của `SHOW ENGINE INNODB STATUS` phần DEADLOCK.
 
 ---
 
