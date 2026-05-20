@@ -1,12 +1,6 @@
-# BÁO CÁO THỰC TẬP NGÀY 20/5
+# BÁO CÁO THỰC TẬP 20/5
 
----
 
-# BÁO CÁO: QUẢN TRỊ DATABASE SERVER
-
-> **Môn học:** Hệ Quản Trị Cơ Sở Dữ Liệu  
-> **Phần:** IV – Quản Trị Database Server  
-> **Hệ QTCSDL minh họa:** MySQL 8.x / PostgreSQL 15.x
 
 ---
 
@@ -177,6 +171,7 @@ INSERT INTO products (name, price, stock) VALUES
 ('Chuột Logitech', 350000, 50),
 ('Bàn phím Keychron', 1800000, 30);
 ```
+<img width="708" height="527" alt="image" src="https://github.com/user-attachments/assets/fae71ede-4102-46c6-9915-0457ba1b0f77" />
 
 **Bước 2 – Tạo role và user**
 
@@ -199,6 +194,7 @@ GRANT 'role_staff'  TO 'nv_nhap_lieu'@'localhost';
 
 SET DEFAULT ROLE ALL TO 'nv_bao_cao'@'localhost', 'nv_nhap_lieu'@'localhost';
 ```
+<img width="1215" height="648" alt="image" src="https://github.com/user-attachments/assets/3a8326ef-8e48-4f67-87e8-f989bb4a91ae" />
 
 **Bước 3 – Kiểm tra**
 
@@ -208,8 +204,9 @@ SET DEFAULT ROLE ALL TO 'nv_bao_cao'@'localhost', 'nv_nhap_lieu'@'localhost';
 INSERT INTO demo_sales.products (name, price, stock) VALUES ('Test', 1, 1);
 -- Kết quả mong đợi: ERROR 1142 (42000): INSERT command denied
 ```
+<img width="1248" height="424" alt="image" src="https://github.com/user-attachments/assets/de267081-1c99-4c60-8c8d-ad208cedf447" />
 
-📸 **Chụp màn hình:** Kết quả `SHOW GRANTS FOR 'nv_bao_cao'@'localhost';` và lỗi khi INSERT.
+nv báo cáo không thể thực hiện lệnh phần này và báo lỗi
 
 ---
 
@@ -490,7 +487,7 @@ tail -50 /var/log/mysql/slow.log
 SHOW FULL PROCESSLIST;
 ```
 
- **Chụp màn hình:** Output của `SHOW FULL PROCESSLIST` khi query đang chạy, và nội dung slow query log.
+📸 **Chụp màn hình:** Output của `SHOW FULL PROCESSLIST` khi query đang chạy, và nội dung slow query log.
 
 ---
 
@@ -741,10 +738,10 @@ Isolation level quyết định mức độ cô lập giữa các transaction đ
 
 | Isolation Level | Dirty Read | Non-Repeatable Read | Phantom Read |
 |----------------|-----------|--------------------|-----------  |
-| READ UNCOMMITTED |  Có thể xảy ra | Có thể |  Có thể |
-| READ COMMITTED |  Ngăn chặn |  Có thể |  Có thể |
-| REPEATABLE READ |  Ngăn chặn |  Ngăn chặn |  Có thể |
-| SERIALIZABLE |  Ngăn chặn |  Ngăn chặn |  Ngăn chặn |
+| READ UNCOMMITTED | ✅ Có thể xảy ra | ✅ Có thể | ✅ Có thể |
+| READ COMMITTED | ❌ Ngăn chặn | ✅ Có thể | ✅ Có thể |
+| REPEATABLE READ | ❌ Ngăn chặn | ❌ Ngăn chặn | ✅ Có thể |
+| SERIALIZABLE | ❌ Ngăn chặn | ❌ Ngăn chặn | ❌ Ngăn chặn |
 
 > MySQL InnoDB mặc định dùng **REPEATABLE READ** và có cơ chế MVCC ngăn Phantom Read.
 
@@ -993,20 +990,3 @@ SHOW ENGINE INNODB STATUS\G
 ---
 
 *Báo cáo được biên soạn dựa trên MySQL 8.x. Các lệnh tương tự có thể áp dụng cho MariaDB và PostgreSQL với cú pháp điều chỉnh nhỏ.*
-
-IV. Quản Trị Database Server
-User và quản lý quyền truy cập
-Sao lưu và phục hồi (Backup & Recovery)
-Theo dõi hiệu năng (Monitoring)
-Tối ưu hóa truy vấn (Query Optimization)
-Quản lý transaction và lock
-V. Bảo Mật Database Server
-Các mối đe dọa bảo mật phổ biến
-Mã hóa dữ liệu (Encryption)
-Audit và theo dõi truy cập
-Patch management và cập nhật bảo mật
-VI. High Availability và Scalability
-Replication (đồng bộ hóa) Mysql,SQL Server, Mongod
-Cluster và Failover ( Mysql, Mongod)
-Sharding (phân mảnh dữ liệu)
-Load balancing cho database
