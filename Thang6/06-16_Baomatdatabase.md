@@ -47,7 +47,9 @@
 
 ## PHẦN V: BẢO MẬT DATABASE SERVER
 
-Database server là trung tâm lưu trữ toàn bộ dữ liệu quan trọng của một hệ thống, từ thông tin người dùng, tài chính, đến dữ liệu vận hành. Vì vậy, đây cũng là mục tiêu tấn công hàng đầu của các tác nhân độc hại. Bảo mật database không chỉ đơn giản là đặt mật khẩu mạnh — nó đòi hỏi một chiến lược đa lớp bao gồm kiểm soát truy cập, mã hóa, giám sát liên tục, và quản lý vá lỗi chủ động.
+Database server là trung tâm lưu trữ toàn bộ dữ liệu quan trọng của một hệ thống, từ thông tin người dùng, tài chính, đến dữ liệu vận hành. Vì vậy, đây cũng là mục tiêu tấn công hàng đầu của các tác nhân độc hại. 
+
+Bảo mật database không chỉ đơn giản là đặt mật khẩu mạnh — nó đòi hỏi một chiến lược đa lớp bao gồm kiểm soát truy cập, mã hóa, giám sát liên tục, và quản lý vá lỗi chủ động.
 
 ---
 
