@@ -352,9 +352,6 @@ auditLog:
   filter: '{ atype: { $in: ["authenticate", "createCollection", "dropCollection", "createUser", "dropUser", "grantRolesToUser"] } }'
 ```
 
-**Demo:**
-
-*(Hình ảnh minh họa: ví dụ một bản ghi audit log JSON từ MongoDB hoặc MySQL)*
 
 #### V.3.3. Tích hợp SIEM và cảnh báo tập trung
 
