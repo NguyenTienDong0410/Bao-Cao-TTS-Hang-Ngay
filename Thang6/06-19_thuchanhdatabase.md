@@ -442,11 +442,11 @@ LIMIT 10;
 ### Mô hình lab
 
 ```
-[Master]  192.168.1.10  (Ubuntu VM 1)
+[Master]  192.168.197.146  (Ubuntu VM 1)
     |
     |  Binary Log Replication
     ↓
-[Slave]   192.168.1.20  (Ubuntu VM 2)
+[Slave]   192.168.197.147  (Ubuntu VM 2)
 ```
 
 ### 4.1 Chuẩn bị cả hai máy
@@ -458,7 +458,7 @@ sudo apt install -y mariadb-server
 sudo systemctl enable --now mariadb
 ```
 
-### 4.2 Cấu hình Master (192.168.1.10)
+### 4.2 Cấu hình Master (192.168.197.146)
 
 ```bash
 sudo nano /etc/mysql/mariadb.conf.d/50-server.cnf
@@ -466,20 +466,12 @@ sudo nano /etc/mysql/mariadb.conf.d/50-server.cnf
 
 ```ini
 [mysqld]
-# ID duy nhất cho mỗi node
 server-id               = 1
 bind-address            = 0.0.0.0
-
-# Bật binary log
 log_bin                 = /var/log/mysql/mysql-bin.log
-binlog_format           = ROW          # ROW an toàn nhất
+binlog_format           = ROW
 expire_logs_days        = 7
 max_binlog_size         = 100M
-
-# Database được replicate (bỏ dòng này = replicate all)
-# binlog_do_db          = testdb
-
-# Database không replicate
 binlog_ignore_db        = information_schema
 binlog_ignore_db        = performance_schema
 binlog_ignore_db        = mysql
@@ -496,7 +488,7 @@ sudo mysql -u root -p
 
 -- Tạo user cho slave kết nối
 CREATE USER 'replicator'@'192.168.1.20' IDENTIFIED BY 'Repl@Pass123';
-GRANT REPLICATION SLAVE ON *.* TO 'replicator'@'192.168.1.20';
+GRANT REPLICATION SLAVE ON *.* TO 'replicator'@'192.168.197.146';
 FLUSH PRIVILEGES;
 
 -- Lấy thông tin binary log hiện tại
@@ -505,14 +497,10 @@ FLUSH TABLES WITH READ LOCK;
 SHOW MASTER STATUS;
 ```
 
-Kết quả ví dụ:
-```
-+------------------+----------+--------------+------------------+
-| File             | Position | Binlog_Do_DB | Binlog_Ignore_DB |
-+------------------+----------+--------------+------------------+
-| mysql-bin.000001 |      745  |              | information_...  |
-+------------------+----------+--------------+------------------+
-```
+Kết quả
+
+<img width="1240" height="738" alt="image" src="https://github.com/user-attachments/assets/2b2a4f82-a1a4-40f1-b10c-6e4a9ae32a99" />
+
 
 Nếu có data sẵn, dump và copy sang Slave:
 
@@ -527,6 +515,7 @@ UNLOCK TABLES;
 # Copy dump sang Slave
 scp /tmp/master_dump.sql user@192.168.1.20:/tmp/
 ```
+<img width="1206" height="486" alt="image" src="https://github.com/user-attachments/assets/c48f649b-a460-4f74-a73c-cebfd7fc39ac" />
 
 ### 4.3 Cấu hình Slave (192.168.1.20)
 
@@ -538,15 +527,12 @@ sudo nano /etc/mysql/mariadb.conf.d/50-server.cnf
 [mysqld]
 server-id               = 2
 bind-address            = 0.0.0.0
-
-# Slave chỉ đọc (tùy chọn, khuyến nghị)
 read_only               = 1
-
-# Relay log
 relay_log               = /var/log/mysql/relay-bin
 relay_log_index         = /var/log/mysql/relay-bin.index
-log_slave_updates       = 1   # Slave cũng ghi binlog (cần nếu chain replication)
+log_slave_updates       = 1
 ```
+<img width="1085" height="400" alt="image" src="https://github.com/user-attachments/assets/1da3aa55-aae7-4d1d-a7f5-adbef376b2ef" />
 
 ```bash
 sudo systemctl restart mariadb
@@ -587,6 +573,7 @@ Slave_IO_Running: Yes      ← phải là Yes
 Slave_SQL_Running: Yes     ← phải là Yes
 Seconds_Behind_Master: 0   ← độ trễ (0 = realtime)
 ```
+<img width="968" height="783" alt="image" src="https://github.com/user-attachments/assets/d7b15f53-8d75-4336-8024-405a8ddcf71b" />
 
 Test thực tế:
 
@@ -602,39 +589,11 @@ USE reptest;
 SELECT * FROM hello;
 -- Phải thấy dòng dữ liệu từ Master
 ```
+<img width="1227" height="866" alt="image" src="https://github.com/user-attachments/assets/7d31bb0c-a96a-4916-8a9a-95ebd4a6bc6e" />
 
-### 4.5 Xử lý sự cố Replication thường gặp
+<img width="1252" height="474" alt="image" src="https://github.com/user-attachments/assets/4531ac94-83e7-4bf2-a06e-5ddf8bf1463c" />
 
-```sql
--- Lỗi: Last_Error có nội dung
--- Bỏ qua 1 lỗi và tiếp tục (dùng cẩn thận)
-STOP SLAVE;
-SET GLOBAL sql_slave_skip_counter = 1;
-START SLAVE;
 
--- Reset hoàn toàn slave
-STOP SLAVE;
-RESET SLAVE ALL;
--- Sau đó CHANGE MASTER TO lại từ đầu
-
--- Xem relay log
-SHOW RELAYLOG EVENTS IN 'relay-bin.000001' LIMIT 20;
-```
-
-### 4.6 Chuyển Slave thành Master (Failover thủ công)
-
-```sql
--- Trên SLAVE: dừng nhận replication
-STOP SLAVE;
-RESET SLAVE ALL;
-SET GLOBAL read_only = OFF;
-
--- Kiểm tra dữ liệu đồng bộ hoàn toàn
-SHOW SLAVE STATUS\G  -- Seconds_Behind_Master = 0 trước khi stop
-
--- Bây giờ Slave đã trở thành Master độc lập
-SHOW MASTER STATUS;   -- dùng thông tin này để slave mới kết nối
-```
 
 ---
 
