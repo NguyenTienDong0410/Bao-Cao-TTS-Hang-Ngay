@@ -1,74 +1,121 @@
 ## BÁO CÁO THỰC TẬP NGÀY 22/06
-# PHẦN 12: THỰC HÀNH DEMO TẠO VÀ CÀI ĐẶT SSL/TLS
-
-Tài liệu này hướng dẫn chi tiết các bước thực hành tạo chứng chỉ SSL (bao gồm tự ký và sử dụng dịch vụ miễn phí) cũng như cách triển khai cấu hình chúng trên các Web Server phổ biến.
+## THỰC HÀNH DEMO SSL/TLS
 
 ---
 
-## 12.1 Tạo SSL
+## 1. Thực hành
 
-### 12.1.1 Tạo Self-Signed Certificate (Chứng chỉ tự ký)
+### 1.1 Tạo SSL
 
-**Giới thiệu:** Chứng chỉ tự ký là chứng chỉ do chính bạn sinh ra mà không thông qua bất kỳ Tổ chức cấp phát (CA) nào. Khi truy cập, trình duyệt sẽ hiện cảnh báo đỏ "Kết nối của bạn không an toàn". Nó chỉ phù hợp cho mục đích test nội bộ (Localhost) hoặc môi trường Dev.
+Để có chứng chỉ SSL đưa lên máy chủ (Apache/Nginx/Tomcat), chúng ta có 2 phương pháp ký (sign) khác nhau: Tự ký (Self-Signed) dùng cho test nội bộ, và Xin chữ ký từ CA (ZeroSSL) dùng cho môi trường thực tế.
 
-**Công cụ thực hiện:** Sử dụng `OpenSSL` (thường có sẵn trên các hệ điều hành Linux).
+#### 1.1.1 Self-Signed Certificate (Chứng chỉ tự ký)
 
-**Các bước thực hiện:**
-Mở Terminal và chạy câu lệnh sau để vừa sinh ra Private Key, vừa tạo Chứng chỉ x509:
+**Giới thiệu:** Đây là chứng chỉ do chính máy chủ của bạn tự sinh ra và tự xác nhận (không thông qua CA nào). Khi truy cập, trình duyệt sẽ hiện cảnh báo đỏ "Kết nối của bạn không an toàn". Phương pháp này bỏ qua bước tạo CSR mà đi thẳng ra file chứng chỉ (CRT).
+
+**Các bước thực hiện (trên Linux):**
+Sử dụng lệnh OpenSSL với tham số `-x509` để sinh ra Private Key và Chứng chỉ cùng một lúc:
 
 ```bash
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout server.key -out server.crt
 ```
 
-**Giải thích các tham số:**
-*   `req -x509`: Báo cho OpenSSL biết ta muốn tạo trực tiếp chứng chỉ X.509 thay vì tạo file yêu cầu (CSR).
-*   `-nodes`: (No DES) Không mã hóa Private Key bằng mật khẩu, giúp Web Server có thể tự động khởi động mà không cần người quản trị nhập pass.
-*   `-days 365`: Thời hạn của chứng chỉ là 1 năm.
-*   `-newkey rsa:2048`: Tự động tạo một Private Key mới bằng thuật toán RSA độ dài 2048-bit.
-*   `-keyout`: Tên file Private Key sẽ được xuất ra (`server.key`).
-*   `-out`: Tên file Chứng chỉ sẽ được xuất ra (`server.crt`).
+*Giải thích:*
+*   `req -x509`: Báo cho OpenSSL tạo trực tiếp chứng chỉ tự ký (bỏ qua bước sinh file yêu cầu CSR).
+*   `-nodes`: Không đặt mật khẩu cho Private Key (để Web server tự khởi động lại được).
+*   `-days 365`: Thời hạn 1 năm.
+*   Kết quả thu được 2 file: `server.key` (Private key) và `server.crt` (Chứng chỉ công khai).
 
-Sau khi chạy lệnh, hệ thống sẽ yêu cầu bạn nhập các thông tin cho chứng chỉ:
-```text
-Country Name (2 letter code) [XX]: VN
-State or Province Name (full name) []: Hanoi
-Locality Name (eg, city) [Default City]: Hanoi
-Organization Name (eg, company) [Default Company Ltd]: IT Demo Company
-Organizational Unit Name (eg, section) []: IT Dept
-Common Name (eg, your name or your server's hostname) []: test.local
-Email Address []: admin@test.local
+<img width="1443" height="808" alt="image" src="https://github.com/user-attachments/assets/4ed48a98-34fc-4559-873c-c6ec874d2b23" />
+
+
+#### 1.1.2 ZeroSSL Certificate (Chứng chỉ do CA ký)
+
+**Giới thiệu:** Để đưa lên môi trường thực tế (Apache, Nginx) mà không bị trình duyệt cảnh báo, quy trình chuẩn (Best Practice) là bạn phải tạo một Yêu cầu cấp chứng chỉ (CSR) trên server, gửi CSR đó cho Tổ chức cấp phát (như ZeroSSL) để họ "ký" (Sign) và trả lại file Chứng chỉ hợp lệ.
+
+**Bước 1: Tạo Private Key và CSR trên Server**
+Sử dụng OpenSSL để tạo bộ khóa và file yêu cầu:
+
+```bash
+openssl req -new -newkey rsa:2048 -nodes -keyout private.key -out request.csr
 ```
-*(Lưu ý: Quan trọng nhất là phần **Common Name** phải điền chính xác tên miền hoặc IP bạn dùng để test).*
 
-**Kết quả:** Bạn nhận được 2 file `server.key` và `server.crt`.
+*Lệnh này sẽ hỏi các thông tin doanh nghiệp. **Đặc biệt lưu ý:** Phần `Common Name (CN)` bạn phải nhập chính xác tên miền thật của bạn (VD: demo.yourdomain.com).*
+Kết quả thu được file `private.key` (giữ tuyệt mật trên server) và `request.csr` (để gửi cho CA).
+
+<img width="1915" height="894" alt="image" src="https://github.com/user-attachments/assets/a72b4ee4-2a28-4fd8-a2a0-3ee73f3d69c6" />
+
+Dùng lệnh `cat request.csr` và copy toàn bộ nội dung văn bản bên trong.
+
+<img width="796" height="567" alt="image" src="https://github.com/user-attachments/assets/8b56a93c-1504-4e24-9683-fb78e6f84ce5" />
+
+-----BEGIN CERTIFICATE REQUEST-----
+MIIDEDCCAfgCAQAwgZwxCzAJBgNVBAYTAlZOMQswCQYDVQQIDAJITjEPMA0GA1UE
+BwwGSGEgTm9pMREwDwYDVQQKDAhOaGFuIEhvYTERMA8GA1UECwwITmhhbiBIb2Ex
+GjAYBgNVBAMMEXd3dy50ZG9uZzQxLmlkLnZuMS0wKwYJKoZIhvcNAQkBFh5kb25n
+a2hvbmduZ3UwNDEwMjAwNEBnbWFpbC5jb20wggEiMA0GCSqGSIb3DQEBAQUAA4IB
+DwAwggEKAoIBAQCtOyj42/AKigNK2vcAC94/+/8LPLSVJ0CtBjhN8n2JtenNRtM4
+801nn5iGgFK/ano9CVj82z3W76oTZgUI5r+j6yRgk7MUILjWyUXxRESZnEq9Lqi+
+ygK30y7v9xrExGeEmtADQDmXV1NsCUAmmvwZU6HhPPiCHxJ2LxwZTzYwuhonqthJ
+bNJx5MXea2F5rMLBLzIrdgolR0LejOM19aJR3fcF2kJIEi7lZIAyt/WOcmcVjZ9Y
+ZjVBkh7+i93Cton3rrOR+Kf60gx+BeTIkN/lZgJDsf7nBr0PBe/Diix3B53q21yG
+ULm+62dTiLmeuOezcqwg6YQxxOeFb6jM+JKLAgMBAAGgLjATBgkqhkiG9w0BCQcx
+BgwEYWFhYTAXBgkqhkiG9w0BCQIxCgwITmhhbiBIb2EwDQYJKoZIhvcNAQELBQAD
+ggEBABtLOArEdDEPnuhoklpGbz/THB0QE7HfXVZmkjXzdp1vWJAKVEvURjZhjap6
+DLbL/gyx3xKknIB+shTFdmuDbQagM4jlIxX/5c8xqAhpOZg743qUy75PnQBZ3uXo
+ERDvgm/UmNsgdSxnpW3V8TcqcUlEq8bYcgyKzaez2cxHNui7an1wqq7Ep97ZVY8m
+FMx0jRHn/j9Q8Uo5n4Q+jq4ulRgxL9xzmGDh184XEbmEB2DDtaVHSJhEHhfjY344
+0xI3D2gEnbB5fRfNGbU5Xi4X1E/Eo0F62hCYbVBzQbebZ/4ns7a45nGKFzb5r5kE
+3gTr4w2zH+zsuSkoALEg/eOn8rE=
+-----END CERTIFICATE REQUEST-----
+
+**Bước 2: Xin chữ ký từ ZeroSSL**
+1. Truy cập [ZeroSSL.com](https://zerossl.com/) tạo tài khoản và chọn **New Certificate**. Nhập tên miền của bạn.
+
+   <img width="1920" height="873" alt="image" src="https://github.com/user-attachments/assets/55d16ec1-af36-4c30-91a5-c3e2a4e5e259" />
+
+3. Tại phần CSR & Contact, thay vì để Auto-Generate (kém an toàn), bạn chọn **Paste Existing CSR** và dán nội dung file `request.csr` đã copy ở Bước 1 vào.
+4. Hoàn thành quá trình xác minh quyền sở hữu tên miền (thường dùng cách tạo bản ghi CNAME trên hệ thống quản lý DNS).
+   <img width="1125" height="776" alt="image" src="https://github.com/user-attachments/assets/50f33da4-d5c5-412f-b351-7a83b91cf5a7" />
+
+add qua cloudflare 
+
+<img width="1199" height="829" alt="image" src="https://github.com/user-attachments/assets/0f3cd626-c7e4-4dad-9421-9eeae07baeac" />
+
+6. Sau khi xác minh thành công, bấm **Download Certificate**.
+   <img width="1027" height="853" alt="image" src="https://github.com/user-attachments/assets/fcae8863-0224-4b90-96d7-353b7e6b86cf" />
+
+8. Giải nén file tải về, bạn sẽ nhận được 2 file quan trọng: `certificate.crt` (Chứng chỉ đã được ZeroSSL ký) và `ca_bundle.crt` (Chuỗi chứng chỉ Root/Intermediate). Lúc này bạn không cần lấy private key từ ZeroSSL nữa vì file `private.key` đã nằm an toàn trên server của bạn từ Bước 1.
 
 ---
 
-### 12.1.2 Tạo ZeroSSL Certificate (Chứng chỉ miễn phí tin cậy)
+trang web ban đầu chưa được ký ssl/tls
+<img width="1639" height="646" alt="image" src="https://github.com/user-attachments/assets/47e32242-121a-48fa-a187-7f49326143c8" />
 
-**Giới thiệu:** ZeroSSL cung cấp chứng chỉ SSL miễn phí thời hạn 90 ngày (tương tự Let's Encrypt). Chứng chỉ này được các trình duyệt tin tưởng hoàn toàn (hiển thị ổ khóa xanh an toàn).
+Hiện tại web đang được triển khai trên direct admin, truy cập và add file đã tải trên zerossl
 
-**Các bước thực hiện trên Web ZeroSSL:**
-1. Truy cập [ZeroSSL.com](https://zerossl.com/) và tạo một tài khoản miễn phí.
-2. Tại màn hình Dashboard, click vào **New Certificate**. Nhập tên miền thật của bạn (ví dụ: `demo.yourdomain.com`).
-3. Chọn gói **90-Day Certificate** (Miễn phí) và bật tính năng **Auto-Generate CSR**.
-4. **Xác minh quyền sở hữu tên miền (Domain Verification):** ZeroSSL sẽ yêu cầu bạn chứng minh bạn là chủ sở hữu tên miền bằng 1 trong 3 cách:
-    *   **Email Verification:** Gửi email đến `admin@yourdomain.com`.
-    *   **DNS (CNAME):** Tạo một bản ghi CNAME trên hệ thống quản lý DNS của tên miền. *(Cách phổ biến và khuyên dùng nhất)*.
-    *   **HTTP File Upload:** Upload một file text dạng `.txt` lên hosting theo đường dẫn ZeroSSL chỉ định (ví dụ: `http://yourdomain.com/.well-known/pki-validation/...`).
-5. Sau khi xác minh thành công, bấm **Download Certificate**.
-6. Giải nén file tải về, bạn sẽ nhận được 3 file:
-    *   `certificate.crt` (Chứng chỉ của tên miền)
-    *   `ca_bundle.crt` (Chứng chỉ của Intermediate CA và Root CA)
-    *   `private.key` (Private key của bạn)
+<img width="1844" height="794" alt="image" src="https://github.com/user-attachments/assets/09dc1acf-11a2-4364-b036-b50989a5b32c" />
 
----
+Add key vào trong ssl cer Dán toàn bộ nội dung file private.key.
 
-## 12.2 Cài đặt và cấu hình SSL trên các Webserver
+Ngay bên dưới: Dán tiếp toàn bộ nội dung file certificate.crt.
+<img width="1184" height="843" alt="image" src="https://github.com/user-attachments/assets/bf1cfb25-3fb7-4087-988b-dbae304f169c" />
 
-Phần này hướng dẫn cách đưa các file Chứng chỉ và Private key (vừa tạo ở phần 12.1) lên các máy chủ web phổ biến.
+Gắn chứng chỉ trung gian (CA Bundle)
 
-### 12.2.1 Cài đặt trên Apache
+ <img width="1350" height="898" alt="image" src="https://github.com/user-attachments/assets/f9e7b6fb-7355-4c22-9598-419ba79b5607" />
+
+sau khi thiết lập, trang web đã được cấp chứng chỉ
+
+<img width="1920" height="812" alt="image" src="https://github.com/user-attachments/assets/32b76d79-594a-411a-9d67-7455f3a347e4" />
+
+
+
+### 1.2 Cài đặt và cấu hình trên các Webserver
+
+Sau khi hoàn thành phần 1.1, bạn đang có 3 file trong tay: `certificate.crt` (hoặc `server.crt`), `private.key` (hoặc `server.key`), và `ca_bundle.crt` (nếu dùng ZeroSSL).
+
+#### 1.2.1 Cài đặt trên Apache
 
 **Bước 1:** Đảm bảo module SSL của Apache đã được bật.
 ```bash
@@ -76,9 +123,9 @@ sudo a2enmod ssl
 sudo systemctl restart apache2
 ```
 
-**Bước 2:** Copy các file `certificate.crt`, `private.key`, `ca_bundle.crt` vào thư mục an toàn trên server (ví dụ `/etc/ssl/`).
+**Bước 2:** Di chuyển các file `.crt` và `.key` vào thư mục an toàn trên server (ví dụ `/etc/ssl/`).
 
-**Bước 3:** Chỉnh sửa file cấu hình VirtualHost (thường nằm ở `/etc/apache2/sites-available/default-ssl.conf` hoặc cấu hình web của bạn):
+**Bước 3:** Chỉnh sửa file cấu hình VirtualHost (thường ở `/etc/apache2/sites-available/default-ssl.conf`):
 
 ```apache
 <VirtualHost *:443>
@@ -88,49 +135,44 @@ sudo systemctl restart apache2
     # Bật SSL Engine
     SSLEngine on
 
-    # Đường dẫn tới file Chứng chỉ
+    # Khai báo file Chứng chỉ
     SSLCertificateFile /etc/ssl/certificate.crt
 
-    # Đường dẫn tới Private Key
+    # Khai báo Private Key
     SSLCertificateKeyFile /etc/ssl/private.key
 
-    # Đường dẫn tới Chuỗi chứng chỉ (CA Bundle)
+    # Khai báo Chuỗi chứng chỉ (Bỏ qua dòng này nếu dùng Self-Signed)
     SSLCertificateChainFile /etc/ssl/ca_bundle.crt
 </VirtualHost>
 ```
 
-**Bước 4:** Kiểm tra lỗi cú pháp và khởi động lại Apache:
+**Bước 4:** Kiểm tra cú pháp và khởi động lại:
 ```bash
 sudo apachectl configtest
 sudo systemctl restart apache2
 ```
 
----
+#### 1.2.2 Cài đặt trên NGINX
 
-### 12.2.2 Cài đặt trên NGINX
+Nginx yêu cầu bạn phải **gộp chung** file chứng chỉ của bạn và file chuỗi chứng chỉ (CA Bundle) thành 1 file duy nhất.
 
-Khác với Apache, Nginx yêu cầu bạn phải **gộp chung** file Chứng chỉ của domain (`certificate.crt`) và file Chuỗi chứng chỉ (`ca_bundle.crt`) thành một file duy nhất (gọi là `fullchain.crt`).
-
-**Bước 1:** Gộp file chứng chỉ (Lưu ý: File chứng chỉ domain phải nằm trên, CA bundle nằm dưới).
+**Bước 1:** Gộp file (Lưu ý: File chứng chỉ domain phải đứng trước, CA bundle đứng sau. Bỏ qua bước này nếu dùng Self-Signed).
 ```bash
 cat certificate.crt ca_bundle.crt > fullchain.crt
 ```
 
-**Bước 2:** Di chuyển `fullchain.crt` và `private.key` vào thư mục an toàn (VD: `/etc/nginx/ssl/`).
-
-**Bước 3:** Mở file cấu hình Nginx (thường ở `/etc/nginx/sites-available/default` hoặc `/etc/nginx/conf.d/domain.conf`):
+**Bước 2:** Mở file cấu hình Nginx của tên miền (thường ở `/etc/nginx/sites-available/default` hoặc `conf.d/`):
 
 ```nginx
 server {
-    # Lắng nghe cổng 443 và bật tính năng SSL
     listen 443 ssl;
     server_name demo.yourdomain.com;
 
-    # Cấu hình đường dẫn chứng chỉ
+    # Cấu hình đường dẫn chứng chỉ (Dùng file đã gộp)
     ssl_certificate /etc/nginx/ssl/fullchain.crt;
     ssl_certificate_key /etc/nginx/ssl/private.key;
 
-    # Cấu hình các giao thức bảo mật (Chỉ dùng TLS 1.2 và 1.3)
+    # Tối ưu bảo mật (Chỉ dùng TLS 1.2 và 1.3)
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers HIGH:!aNULL:!MD5;
 
@@ -141,40 +183,30 @@ server {
 }
 ```
 
-**Bước 4:** Kiểm tra cú pháp và khởi động lại Nginx:
+**Bước 3:** Kiểm tra và khởi động lại Nginx:
 ```bash
 sudo nginx -t
 sudo systemctl restart nginx
 ```
 
----
+#### 1.2.3 Cài đặt trên Tomcat (Java)
 
-### 12.2.3 Cài đặt trên Tomcat (Java)
+Tomcat không đọc trực tiếp file `.crt` và `.key` riêng lẻ mà dùng chuẩn Java Keystore (`.jks`) hoặc PKCS12 (`.p12`).
 
-Tomcat không sử dụng trực tiếp các file định dạng PEM (`.crt`, `.key`) như Nginx hay Apache mà sử dụng Java Keystore (`.jks`) hoặc PKCS12 (`.p12`).
-
-**Bước 1: Chuyển đổi định dạng sang PKCS12 (.p12)**
-Bạn cần dùng OpenSSL để đóng gói cả 3 file (Cert, Key, CA Bundle) vào 1 file `.p12`.
-
+**Bước 1:** Dùng OpenSSL đóng gói tất cả các file thành 1 file PKCS12:
 ```bash
 openssl pkcs12 -export -out keystore.p12 -inkey private.key -in certificate.crt -certfile ca_bundle.crt -name "tomcat"
 ```
-Hệ thống sẽ yêu cầu bạn tạo một mật khẩu xuất (Export Password). Hãy nhớ mật khẩu này (ví dụ: `matkhau123`).
+*(Hệ thống sẽ yêu cầu bạn nhập mật khẩu xuất file, ví dụ: `matkhau123`)*
 
-**Bước 2:** Di chuyển file `keystore.p12` vào thư mục cấu hình của Tomcat (ví dụ `/opt/tomcat/conf/`).
-
-**Bước 3: Sửa cấu hình server.xml**
-Mở file `/opt/tomcat/conf/server.xml`, tìm thẻ `<Connector>` có cổng `443` (hoặc `8443` tùy thiết lập) và chỉnh sửa như sau:
+**Bước 2:** Mở file `/opt/tomcat/conf/server.xml`, tìm khối `<Connector>` port 443 (hoặc 8443) và cấu hình lại:
 
 ```xml
 <Connector port="443" 
            protocol="org.apache.coyote.http11.Http11NioProtocol"
            maxThreads="150" 
            SSLEnabled="true" 
-           scheme="https" 
-           secure="true"
-           clientAuth="false" 
-           sslProtocol="TLS">
+           scheme="https" secure="true" clientAuth="false" sslProtocol="TLS">
     
     <SSLHostConfig>
         <Certificate certificateKeystoreFile="conf/keystore.p12"
@@ -184,15 +216,8 @@ Mở file `/opt/tomcat/conf/server.xml`, tìm thẻ `<Connector>` có cổng `44
 </Connector>
 ```
 
-**Bước 4:** Khởi động lại Tomcat để áp dụng.
+**Bước 3:** Khởi động lại Tomcat:
 ```bash
 /opt/tomcat/bin/shutdown.sh
 /opt/tomcat/bin/startup.sh
 ```
-
----
-
-## Tổng kết thực hành
-Sau khi cài đặt xong trên một trong các Webserver kể trên, bạn truy cập vào tên miền qua giao thức `https://`.
-*   Đối với bản **Self-Signed**: Trình duyệt sẽ hiện cảnh báo. Để tiếp tục, bạn nhấn "Advanced" (Nâng cao) -> "Proceed to site" (Tiếp tục truy cập).
-*   Đối với bản **ZeroSSL**: Trình duyệt sẽ nhận diện ngay lập tức và hiển thị biểu tượng ổ khóa an toàn, chứng minh quá trình cài đặt Demo đã hoàn tất thành công.
