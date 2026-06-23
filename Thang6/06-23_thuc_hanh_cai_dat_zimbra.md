@@ -1,4 +1,3 @@
-<img width="1179" height="517" alt="image" src="https://github.com/user-attachments/assets/55715374-5b95-4935-b442-531e08cc0ee4" />
 ---
 
 # Cài đặt Zimbra OSE 10.1.4 trên Ubuntu 22.04
@@ -380,3 +379,4 @@ sudo ufw allow 53/udp
 
 * **Trang quản trị dành cho Admin (Admin Console):** `https://192.168.197.148:7071`
 * **Trang đăng nhập kiểm tra thư của người dùng (Webmail):** `https://192.168.197.148`
+<img width="1911" height="892" alt="image" src="https://github.com/user-attachments/assets/431d25fa-2801-42bb-aeee-b5cbf3cca3ad" />
