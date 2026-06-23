@@ -1,4 +1,3 @@
----
 
 # Cài đặt Zimbra OSE 10.1.4 trên Ubuntu 22.04
 
