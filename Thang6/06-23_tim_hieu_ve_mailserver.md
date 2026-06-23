@@ -52,7 +52,6 @@
 
 
 
-    Khung nội dung bạn đưa ra rất chuẩn xác, logic và bao quát gần như toàn bộ vòng đời quản trị của một Mail Server từ lúc dựng hình, vận hành đến bảo mật và tối ưu. Những kinh nghiệm xử lý log tập trung với ELK Stack hay cấu hình High Availability (HAProxy, Keepalived) trên Ubuntu sẽ là lợi thế cực lớn giúp bạn làm chủ hệ thống này rất nhanh, vì bản chất Mail Server doanh nghiệp là sự kết hợp của nhiều service chạy đồng thời.
 
 Để tối ưu hóa cho việc học và triển khai thực tế trên **Zimbra FOSS (phiên bản 8.8.15 hoặc 10)**, chúng ta sẽ chia lại lộ trình thành 2 phần: **Lý thuyết nền tảng** và **Thực hành Lab (Hands-on)**.
 
@@ -127,4 +126,3 @@ Trước khi gõ lệnh, bạn cần nắm rõ cách các component giao tiếp 
 
 Cả hai phiên bản 8.8.15 và 10 đều có chung nguyên lý này, bản 10 có sự nâng cấp về giao diện Web Client (Modern UI) và thay đổi một số service ngầm, nhưng commands quản trị core (zmcontrol, zmprov, zmdkimkeyutil...) vẫn giữ nguyên.
 
-Bạn muốn bắt đầu bước đầu tiên là thiết lập Local DNS và cài đặt Core trên môi trường lab ảo, hay muốn phân tích cấu trúc log của Zimbra trước?
