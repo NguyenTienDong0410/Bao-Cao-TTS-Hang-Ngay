@@ -109,6 +109,206 @@ sau khi thiết lập, trang web đã được cấp chứng chỉ
 
 <img width="1920" height="812" alt="image" src="https://github.com/user-attachments/assets/32b76d79-594a-411a-9d67-7455f3a347e4" />
 
+Dưới đây là bản trình bày chi tiết theo định dạng văn bản báo cáo kỹ thuật. Bạn có thể sử dụng cấu trúc này để đưa trực tiếp vào tài liệu thực hành hoặc báo cáo bài tập của mình.
+
+---
+
+
+**1. Mục đích triển khai**
+
+* Thiết lập môi trường thử nghiệm (Local Environment) cho dịch vụ Web Server sử dụng giao thức HTTPS.
+* Tích hợp bộ chứng chỉ bảo mật (SSL Certificate) đã được cấp phát bởi ZeroSSL cho tên miền `tdong41.id.vn` lên máy chủ cục bộ.
+* Giả lập hệ thống phân giải tên miền (DNS Resolution) trên máy khách để kiểm thử tính hợp lệ của chứng chỉ (hiển thị ổ khóa bảo mật xanh) mà không làm gián đoạn dịch vụ đang chạy trên môi trường Internet (Production).
+
+**2. Yêu cầu chuẩn bị**
+
+* **Máy chủ Web (Local Server):** Hệ điều hành Ubuntu (đã cài đặt Apache hoặc NGINX), có địa chỉ IP LAN tĩnh (Ví dụ: `192.168.1.50`).
+* **Máy khách (Client):** Máy tính sử dụng hệ điều hành Windows để truy cập và kiểm thử.
+* **Tài nguyên SSL:** Bộ 3 file chứng chỉ của tên miền `tdong41.id.vn` bao gồm:
+* `private.key` (Khóa bí mật tạo trên máy chủ).
+* `certificate.crt` (Chứng chỉ gốc cấp bởi ZeroSSL).
+* `ca_bundle.crt` (Chứng chỉ trung gian CA).
+
+
+
+---
+
+**3. Các bước tiến hành**
+
+### Phân hệ 3.1: Quản lý và lưu trữ File Chứng chỉ trên Ubuntu Server
+
+Để đảm bảo tính bảo mật và tổ chức hệ thống chuẩn xác, bộ khóa SSL cần được lưu trữ tại thư mục hệ thống với quyền truy cập được kiểm soát.
+
+**Bước 1:** Di chuyển hoặc sao chép 3 file chứng chỉ (`private.key`, `certificate.crt`, `ca_bundle.crt`) vào thư mục `/etc/ssl/`.
+<img width="851" height="134" alt="image" src="https://github.com/user-attachments/assets/3cfcf633-d6b8-4d40-94a7-5c872a3eb6d8" />
+
+
+**Bước 2:** (Tùy chọn dành riêng cho NGINX) Tiến hành gộp file chứng chỉ gốc và chứng chỉ trung gian thành một chuỗi duy nhất:
+
+```bash
+sudo cat /etc/ssl/certificate.crt /etc/ssl/ca_bundle.crt > /etc/ssl/fullchain.crt
+
+```
+<img width="924" height="160" alt="image" src="https://github.com/user-attachments/assets/7371365b-cd38-45c4-8387-1f752d6f5d0d" />
+
+
+---
+
+**1. Mục đích triển khai**
+
+* Thiết lập môi trường thử nghiệm (Local Environment) cho dịch vụ Web Server sử dụng giao thức HTTPS.
+* Tích hợp bộ chứng chỉ bảo mật (SSL Certificate) đã được cấp phát bởi ZeroSSL cho tên miền `tdong41.id.vn` lên máy chủ cục bộ.
+* Giả lập hệ thống phân giải tên miền (DNS Resolution) trên máy khách để kiểm thử tính hợp lệ của chứng chỉ (hiển thị ổ khóa bảo mật xanh) mà không làm gián đoạn dịch vụ đang chạy trên môi trường Internet (Production).
+
+**2. Yêu cầu chuẩn bị**
+
+* **Máy chủ Web (Local Server):** Hệ điều hành Ubuntu (đã cài đặt Apache hoặc NGINX), có địa chỉ IP LAN tĩnh (Ví dụ: `192.168.1.50`).
+* **Máy khách (Client):** Máy tính sử dụng hệ điều hành Windows để truy cập và kiểm thử.
+* **Tài nguyên SSL:** Bộ 3 file chứng chỉ của tên miền `tdong41.id.vn` bao gồm:
+* `private.key` (Khóa bí mật tạo trên máy chủ).
+* `certificate.crt` (Chứng chỉ gốc cấp bởi ZeroSSL).
+* `ca_bundle.crt` (Chứng chỉ trung gian CA).
+
+
+
+---
+
+**3. Các bước tiến hành**
+
+### Phân hệ 3.1: Quản lý và lưu trữ File Chứng chỉ trên Ubuntu Server
+
+Để đảm bảo tính bảo mật và tổ chức hệ thống chuẩn xác, bộ khóa SSL cần được lưu trữ tại thư mục hệ thống với quyền truy cập được kiểm soát.
+
+**Bước 1:** Di chuyển hoặc sao chép 3 file chứng chỉ (`private.key`, `certificate.crt`, `ca_bundle.crt`) vào thư mục `/etc/ssl/`.
+**Bước 2:** (Tùy chọn dành riêng cho NGINX) Tiến hành gộp file chứng chỉ gốc và chứng chỉ trung gian thành một chuỗi duy nhất:
+
+```bash
+sudo cat /etc/ssl/certificate.crt /etc/ssl/ca_bundle.crt > /etc/ssl/fullchain.crt
+
+```
+
+### Phân hệ 3.2: Khởi tạo mã nguồn Web thử nghiệm (Document Root)
+
+Để kiểm chứng việc truy cập thành công, cần tạo một trang HTML đơn giản làm nội dung phản hồi cho tên miền thay vì dùng trang mặc định của Web Server.
+
+**Bước 1:** Đảm bảo thư mục lưu trữ mã nguồn đã tồn tại và phân quyền đúng:
+
+```bash
+sudo mkdir -p /var/www/html
+sudo chown -R www-data:www-data /var/www/html
+sudo chmod -R 755 /var/www/html
+
+```
+
+**Bước 2:** Tạo tệp tin `index.html` với nội dung nhận diện riêng:
+
+```bash
+echo "<h1>Kiem thu thanh cong SSL Local cho tdong41.id.vn</h1>" | sudo tee /var/www/html/index.html
+
+```
+<img width="1304" height="354" alt="image" src="https://github.com/user-attachments/assets/1d1ab691-783a-411a-86b1-732186c9c633" />
+
+### Phân hệ 3.3: Khai báo VirtualHost / Server Block trên Web Server
+
+Cấu hình Web Server để lắng nghe kết nối mã hóa qua cổng 443 và trỏ đường dẫn đến bộ khóa SSL.
+
+**Tùy chọn A: Dành cho Apache Server**
+Mở và chỉnh sửa file cấu hình tại `/etc/apache2/sites-available/tdong41-ssl.conf`:
+
+```apache
+<VirtualHost *:443>
+    ServerName tdong41.id.vn
+    DocumentRoot /var/www/html
+
+    # Kích hoạt module SSL
+    SSLEngine on
+
+    # Khai báo đường dẫn chứng chỉ
+    SSLCertificateFile /etc/ssl/certificate.crt
+    SSLCertificateKeyFile /etc/ssl/private.key
+    SSLCertificateChainFile /etc/ssl/ca_bundle.crt
+
+    ErrorLog ${APACHE_LOG_DIR}/error.log
+    CustomLog ${APACHE_LOG_DIR}/access.log combined
+</VirtualHost>
+
+```
+<img width="1285" height="495" alt="image" src="https://github.com/user-attachments/assets/58d690b8-fed7-444a-9222-bc1dbd29e3fc" />
+
+Thực thi lệnh kiểm tra và khởi động lại dịch vụ:
+
+```bash
+sudo a2enmod ssl
+sudo a2ensite tdong41-ssl.conf
+sudo systemctl restart apache2
+
+```
+<img width="736" height="385" alt="image" src="https://github.com/user-attachments/assets/d44212cd-85fa-4e21-b1f4-07cde08ccde4" />
+
+**Tùy chọn B: Dành cho NGINX Server**
+Mở và chỉnh sửa file cấu hình tại `/etc/nginx/sites-available/tdong41`:
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name tdong41.id.vn;
+    root /var/www/html;
+    index index.html;
+
+    # Khai báo đường dẫn chứng chỉ (sử dụng file đã gộp)
+    ssl_certificate /etc/ssl/fullchain.crt;
+    ssl_certificate_key /etc/ssl/private.key;
+
+    # Tối ưu hóa bảo mật SSL
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+}
+
+```
+<img width="1132" height="472" alt="image" src="https://github.com/user-attachments/assets/9dc1fd82-1609-4858-a99b-413a04781461" />
+
+Thực thi lệnh kiểm tra và khởi động lại dịch vụ:
+
+```bash
+sudo ln -s /etc/nginx/sites-available/tdong41 /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl restart nginx
+
+```
+
+### Phân hệ 3.4: Điều hướng DNS cục bộ trên Máy khách (Windows)
+
+Đây là kỹ thuật cốt lõi để giả lập môi trường thực tế. Cần can thiệp vào file `hosts` của Windows để ép trình duyệt phân giải tên miền `tdong41.id.vn` về IP của máy chủ Local thay vì IP Public.
+
+**Bước 1:** Khởi chạy ứng dụng Notepad dưới quyền Quản trị viên (Run as Administrator).
+**Bước 2:** Mở tệp tin cấu hình hệ thống theo đường dẫn:
+`C:\Windows\System32\drivers\etc\hosts`
+**Bước 3:** Bổ sung bản ghi định tuyến cục bộ vào cuối tệp tin (thay IP `192.168.197.148` bằng IP thực tế của máy chủ Ubuntu):
+
+```text
+# Local Testing cho Môi trường SSL
+192.168.197.148   tdong41.id.vn
+192.168.197.148   www.tdong41.id.vn
+
+```
+<img width="571" height="80" alt="image" src="https://github.com/user-attachments/assets/af610ede-0a66-45da-8f4d-445b3d2b677d" />
+
+**Bước 4:** Lưu tệp tin (`Ctrl + S`).
+
+---
+
+**4. Kết quả và Quy trình kiểm thử**
+
+* **Môi trường kiểm thử:** Trình duyệt web (Google Chrome / Microsoft Edge) sử dụng chế độ Ẩn danh (Incognito) để tránh lưu Cache.
+* **Thao tác:** Truy cập vào URL `https://tdong41.id.vn`.
+* **Kết quả thu được:**
+1. Trình duyệt hiển thị thành công dòng chữ: *"Kiem thu thanh cong SSL Local cho tdong41.id.vn"*.
+2. Thanh địa chỉ hiển thị trạng thái bảo mật hợp lệ (Biểu tượng ổ khóa màu xanh / Connection is secure).
+3. Kiểm tra chi tiết chứng chỉ (Certificate Details) cho thấy thông tin nhà phát hành (Issuer) là **ZeroSSL RSA Domain Secure Site CA** và tên miền được cấp (Common Name) hoàn toàn trùng khớp.
+<img width="1633" height="324" alt="image" src="https://github.com/user-attachments/assets/bbdfd69e-4ca7-4563-a1ff-bf1cbb3a7c60" />
+
+<img width="991" height="912" alt="image" src="https://github.com/user-attachments/assets/45c47a54-d99d-46a4-842a-a0a3d3778c62" />
+
 
 
 
