@@ -182,4 +182,165 @@ Bash
 Không có mail nào được nằm trong queue
 <img width="654" height="118" alt="image" src="https://github.com/user-attachments/assets/41e83613-f478-4219-a468-2a1e9dee6283" />
 
+4. Quản trị log
+Khi theo dõi /var/log/zimbra.log, bạn không chỉ nhìn dòng chữ trôi qua mà phải lọc bằng grep. Postfix (MTA của Zimbra) định nghĩa 4 trạng thái cực kỳ quan trọng:
+
+status=sent: Mail đã đi trót lọt.
+
+status=bounced: Bị dội ngược lại (do sai địa chỉ, hòm thư đầy).
+
+status=deferred: Bị hoãn (mạng chập chờn, server đích tạm sập), Postfix sẽ đưa vào Queue để thử lại sau.
+
+status=rejected: Bị từ chối thẳng thừng (thường do dính Spam, sai SPF/DKIM).
+
+log zimbra real time
+tail -f /var/log/zimbra.log
+<img width="1137" height="422" alt="image" src="https://github.com/user-attachments/assets/f3846646-cc14-4faf-8655-963d633545c2" />
+
+Log đăng nhập và thao tác Mailbox: Dùng để xem ai đang login webmail, sai mật khẩu, hoặc tải file đính kèm.
+
+Bash
+tail -f /opt/zimbra/log/mailbox.log
+
+<img width="1394" height="590" alt="image" src="https://github.com/user-attachments/assets/752d1256-10f5-4ae7-929c-0e79c3fce545" />
+
+Thay vì tail -f toàn bộ, khi một user báo lỗi, bạn sẽ tìm đích danh mail của họ:
+
+Bash
+# Tìm tất cả log liên quan đến một địa chỉ email cụ thể
+grep "a@mail.domain.com" /var/log/zimbra.log
+
+<img width="1399" height="784" alt="image" src="https://github.com/user-attachments/assets/94d11fa6-490e-433d-b7f3-e040ab6f686b" />
+
+# Tìm các mail bị gửi xịt (bounced) trong ngày hôm nay
+grep "status=bounced" /var/log/zimbra.log
+
+<img width="1391" height="173" alt="image" src="https://github.com/user-attachments/assets/c80aaa41-de62-4f9c-82b5-410670533a7a" />
+
+Phần 3: Quản trị Backup & Restore (Sao lưu và Phục hồi dữ liệu)
+
+
+Trên phiên bản Zimbra Open Source Edition (OSE), tính năng sao lưu tự động qua giao diện Web Admin đã bị cắt bỏ. Nếu máy chủ gặp sự cố ổ cứng hoặc người dùng lỡ tay xóa sạch hộp thư, bạn sẽ mất trắng dữ liệu. Do đó, việc nắm vững công cụ dòng lệnh zmmailbox để xuất/nhập dữ liệu dưới định dạng .tgz (bao gồm toàn bộ Email, Danh bạ, Lịch) là kỹ năng sống còn.
+
+2. Hướng dẫn thao tác chi tiết 
+
+Bước 2.1: Thao tác thủ công cho một người dùng cụ thể
+Khi có một nhân sự nghỉ việc hoặc cần chuyển dữ liệu sang máy chủ khác, bạn có thể backup riêng tài khoản của họ.
+
+Chuyển sang người dùng zimbra:
+
+Bash
+su - zimbra
+Thực thi lệnh backup và xuất ra file .tgz:
+
+Bash
+zmmailbox -z -m a@domain.com getRestURL "//?fmt=tgz" > /tmp/backup_a.tgz
+Bước 2.2: Tự động hóa Backup cho toàn bộ hệ thống bằng Script
+Thực tế, không ai gõ lệnh tay mỗi ngày cho hàng trăm tài khoản. Chúng ta sẽ viết một đoạn script tự động lấy danh sách người dùng và backup toàn bộ.
+
+Tạo thư mục chứa file backup và cấp quyền:
+
+Bash
+exit # Thoát khỏi user zimbra, quay về root
+mkdir -p /backup/zimbra_mailboxes
+chown -R zimbra:zimbra /backup/zimbra_mailboxes
+Tạo file script /usr/local/bin/zimbra_backup.sh với nội dung:
+
+<img width="1234" height="355" alt="image" src="https://github.com/user-attachments/assets/86b94e17-52c3-4f6b-9e7a-44ebad46c980" />
+
+Bash
+#!/bin/bash
+# Định nghĩa thư mục lưu trữ và ngày tháng
+BACKUP_DIR="/backup/zimbra_mailboxes"
+DATE=$(date +"%Y%m%d")
+
+echo "Bắt đầu tiến trình Backup lúc $(date)"
+
+# Lấy danh sách tất cả account
+ACCOUNTS=$(su - zimbra -c "zmprov -l gaa")
+
+# Vòng lặp backup từng account
+for ACCOUNT in $ACCOUNTS; do
+    echo "Đang backup tài khoản: $ACCOUNT"
+    su - zimbra -c "zmmailbox -z -m $ACCOUNT getRestURL \"//?fmt=tgz\" > $BACKUP_DIR/${ACCOUNT}_${DATE}.tgz"
+done
+
+echo "Tiến trình Backup hoàn tất!"
+
+<img width="1322" height="500" alt="image" src="https://github.com/user-attachments/assets/45bb30d6-950b-4c28-90aa-1069278af1dd" />
+
+Cấp quyền thực thi và đưa vào Crontab (chạy lúc 2h sáng mỗi ngày):
+
+
+Bash
+chmod +x /usr/local/bin/zimbra_backup.sh
+crontab -e
+# Thêm dòng sau vào cuối file:
+# 0 2 * * * /usr/local/bin/zimbra_backup.sh >> /var/log/zimbra_backup.log 2>&1
+
+<img width="1053" height="713" alt="image" src="https://github.com/user-attachments/assets/519e6a62-d9a9-4c27-a1e8-5283edd10d17" />
+
+Bước 2.3: Phục hồi (Restore) dữ liệu
+Khi cần khôi phục lại dữ liệu từ file backup đã tạo ở trên:
+
+Bash
+su - zimbra
+zmmailbox -z -m a@mail.domain.com postRestURL "//?fmt=tgz&resolve=replace" /backup/zimbra_mailboxes/a@mail.domain.com_20260624.tgz
+Lưu ý tham số resolve:
+
+resolve=replace: Xóa đè các mail trùng lặp hiện có (Thường dùng khi hộp thư bị lỗi nặng).
+
+resolve=skip: Bỏ qua các mail đã có, chỉ khôi phục các mail bị thiếu.
+
+<img width="1395" height="412" alt="image" src="https://github.com/user-attachments/assets/fd58eb20-7a06-4861-8cd6-4a7a980343c6" />
+
+
+Phần 4: Quản lý Bảo mật Anti-Spam & Anti-Virus (AS/AV)
+
+Hệ thống Zimbra của bạn khi mở port ra ngoài Internet sẽ liên tục bị rà quét và ném thư rác (Spam). Luồng hoạt động bảo mật của Zimbra diễn ra như sau: Mail đến -> Postfix nhận -> Đẩy qua dịch vụ điều phối Amavisd -> Amavisd gọi ClamAV quét mã độc -> Gọi SpamAssassin chấm điểm ngữ nghĩa, đánh giá IP -> Nếu an toàn, Amavisd trả lại để Postfix phân phối vào hộp thư. Bạn phải kiểm soát tốt bộ máy này.
+
+2. Hướng dẫn thao tác chi tiết
+
+Bước 2.1: Cập nhật cơ sở dữ liệu nhận diện Virus
+ClamAV cần được cập nhật mẫu virus mới liên tục (giống như các phần mềm diệt virus trên Windows).
+
+Bash
+su - zimbra
+# Chạy lệnh cập nhật database (chạy thủ công khi có đợt tấn công mới)
+/opt/zimbra/common/bin/freshclam
+
+<img width="1475" height="333" alt="image" src="https://github.com/user-attachments/assets/c93e726e-cbaa-4209-8426-782aadae4f6a" />
+
+
+Bước 2.2: Quản trị Whitelist và Blacklist (Danh sách trắng/đen)
+Đây là thao tác bạn sẽ dùng nhiều nhất khi user phàn nàn "Mail đối tác bị vào Spam" hoặc "Bị gửi mail lừa đảo liên tục".
+
+Thêm vào Whitelist (Bảo vệ mail đối tác quan trọng khỏi bộ lọc Spam):
+
+Bash
+# Cấp quyền cho toàn bộ domain của Vingroup gửi vào không bao giờ bị chặn
+zmprov md mail.domain.com +amavisWhitelistSender vingroup.net
+
+Thêm vào Blacklist (Chặn đứng nguồn phát tán Spam):
+
+Bash
+# Chặn một email lừa đảo
+zmprov md mail.domain.com +amavisBlacklistSender hacker@gmail.com
+
+
+
+Bước 2.3: Tinh chỉnh cơ chế chấm điểm Spam qua giao diện Web Admin
+Ngoài việc chặn bằng lệnh, bạn nên điều chỉnh độ nhạy của bộ lọc để hệ thống tự phân loại.
+
+Truy cập Admin Console (Cổng 7071/9071).
+
+Điều hướng đến Cấu hình (Configure) -> Cài đặt chung (Global Settings) -> AS/AV.
+
+Cấu hình 2 ngưỡng điểm (SpamAssassin Score) quan trọng:
+
+Ngưỡng Gắn thẻ (Tag): Mặc định là 33%. Nếu mail bị đánh giá ngữ nghĩa đạt ngưỡng này, tiêu đề mail sẽ bị gắn thêm tiền tố [SPAM] (hoặc chui vào mục Thư rác). Bạn có thể hạ xuống 25% nếu muốn lọc chặt hơn.
+
+Ngưỡng Xóa bỏ (Kill/Discard): Mặc định là 75%. Nếu mail đạt điểm này, Zimbra sẽ xóa lập tức, người dùng không hề biết có mail đến. Nếu công ty bạn thường xuyên làm việc với các hệ thống có cấu hình mail lỏng lẻo, bạn nên tăng mức này lên 85-90% để tránh mất thư oan.
+
+<img width="1586" height="558" alt="image" src="https://github.com/user-attachments/assets/3e9fd022-5982-4441-b7b5-048190dc4904" />
 
