@@ -1,4 +1,4 @@
-# Hướng Dẫn Thực Hành: Zabbix High Availability (Native HA Cluster)
+# Báo Cáo Thực Tập: Zabbix High Availability (Native HA Cluster)
 
 ---
 
