@@ -65,6 +65,7 @@ Native HA hoạt động theo mô hình **Active/Passive**:
 
 > Database vẫn chạy trên Node 1 (`192.168.197.148`). Đây là điểm khác biệt so với kiến trúc 3 máy. Trong lab 2 máy, database **không** được HA — nếu Node 1 chết hoàn toàn (bao gồm cả DB), Node 2 cũng không thể failover. Tuy nhiên, nếu chỉ có **Zabbix Server process** trên Node 1 bị lỗi trong khi DB vẫn chạy, Node 2 sẽ failover thành công.
 
+
 ### Kiểm Tra Kết Nối Giữa Hai Máy
 
 Trên cả hai máy, xác nhận ping được nhau:
@@ -89,6 +90,8 @@ Thêm vào cuối file:
 192.168.197.148  zabbix-node1
 192.168.197.149  zabbix-node2
 ```
+
+<img width="943" height="393" alt="image" src="https://github.com/user-attachments/assets/c8c84028-20fe-45bc-9cc3-8d7743b1d81f" />
 
 ---
 
@@ -122,6 +125,9 @@ EXIT;
 
 > **Lưu ý:** Thay `zabbix_password` bằng mật khẩu database thực tế đang dùng trên hệ thống. Xem lại mật khẩu hiện tại trong file `/etc/zabbix/zabbix_server.conf` tại dòng `DBPassword=`.
 
+<img width="957" height="653" alt="image" src="https://github.com/user-attachments/assets/07fe8f94-f83e-45cb-90ba-5eb898d783ee" />
+
+
 ### 3.2 Cấu Hình MariaDB Lắng Nghe Kết Nối Từ Bên Ngoài
 
 Mặc định MariaDB chỉ lắng nghe `127.0.0.1`. Cần cho phép Node 2 kết nối được.
@@ -139,6 +145,7 @@ bind-address = 127.0.0.1
 # Sau:
 bind-address = 0.0.0.0
 ```
+<img width="943" height="977" alt="image" src="https://github.com/user-attachments/assets/c6fa19dc-53b5-4816-b63a-d77f488358b2" />
 
 Khởi động lại MariaDB:
 
@@ -153,12 +160,16 @@ sudo ufw allow from 192.168.197.149 to any port 3306
 sudo ufw reload
 ```
 
+<img width="792" height="186" alt="image" src="https://github.com/user-attachments/assets/4f8f64be-2c10-47f6-b760-8062551d8877" />
+
 Kiểm tra Node 2 đã kết nối được vào DB của Node 1 chưa (chạy lệnh này **từ Node 2**):
 
 ```bash
 # Chạy trên Node 2 — 192.168.197.149
 mysql -h 192.168.197.148 -u zabbix -p zabbix -e "SELECT 1;"
 ```
+
+<img width="993" height="258" alt="image" src="https://github.com/user-attachments/assets/68ecff6e-add5-40ad-961f-2cd8800c9ef2" />
 
 Kết quả mong đợi: `+---+` / `| 1 |` — kết nối thành công.
 
@@ -220,7 +231,7 @@ Dùng `Ctrl + W` để tìm từng tham số. Thêm hoặc sửa các dòng sau:
 DBHost=localhost
 DBName=zabbix
 DBUser=zabbix
-DBPassword=zabbix_password
+DBPassword=a
 
 # ===== THÊM MỚI — CẤU HÌNH HA =====
 
@@ -230,6 +241,8 @@ HANodeName=zabbix-node1
 # Địa chỉ của node này — Frontend dùng để kết nối khi node này là Active
 NodeAddress=192.168.197.148:10051
 ```
+<img width="903" height="148" alt="image" src="https://github.com/user-attachments/assets/e8065858-8faa-4282-9a2c-cdc4c340364e" />
+
 
 > **Quan trọng:** `HANodeName` là tham số kích hoạt chế độ HA. Nếu để trống hoặc bị comment, Zabbix Server chạy ở chế độ **standalone** (không HA).
 
@@ -245,12 +258,14 @@ Kiểm tra log xác nhận HA đã lên Active:
 sudo grep "HA" /var/log/zabbix/zabbix_server.log
 ```
 
+
 Kết quả mong đợi:
 
 ```
 starting HA manager
 HA manager started in active mode
 ```
+<img width="820" height="658" alt="image" src="https://github.com/user-attachments/assets/7ad643b4-a358-4fb7-834a-16e33d34671b" />
 
 ---
 
@@ -271,7 +286,7 @@ sudo nano /etc/zabbix/zabbix_server.conf
 DBHost=192.168.197.148
 DBName=zabbix
 DBUser=zabbix
-DBPassword=zabbix_password
+DBPassword=a
 
 # ===== CẤU HÌNH HA =====
 
@@ -281,6 +296,8 @@ HANodeName=zabbix-node2
 # Địa chỉ của node này
 NodeAddress=192.168.197.149:10051
 ```
+
+<img width="980" height="945" alt="image" src="https://github.com/user-attachments/assets/c7674e64-7c88-4c82-b281-4995e9f2b558" />
 
 ### 6.2 Mở Port 10051 trên Tường Lửa Node 2
 
@@ -318,6 +335,7 @@ Kết quả mong đợi — Node 2 lên Standby vì Node 1 đã là Active:
 starting HA manager
 HA manager started in standby mode
 ```
+<img width="765" height="269" alt="image" src="https://github.com/user-attachments/assets/3748ed5d-3b8f-4fe4-abed-8254030809db" />
 
 ---
 
@@ -351,6 +369,8 @@ Thì sửa thành:
 // $ZBX_SERVER = '192.168.197.148';
 // $ZBX_SERVER_PORT = '10051';
 ```
+<img width="895" height="118" alt="image" src="https://github.com/user-attachments/assets/2559c5c1-a172-4491-9f5a-90a5514d8a89" />
+
 
 > **Giải thích:** Khi hai biến này được đặt giá trị, Frontend luôn kết nối cứng đến Node 1. Nếu Node 1 đang ở standby, Frontend sẽ báo lỗi "Zabbix server is not running" dù Node 2 đang chạy bình thường. Khi comment out, Frontend tự tra cứu database để tìm địa chỉ của node Active hiện tại.
 
@@ -382,6 +402,7 @@ ServerActive=192.168.197.148;192.168.197.149
 
 Hostname=zabbix-node2
 ```
+<img width="655" height="401" alt="image" src="https://github.com/user-attachments/assets/2273233f-f201-422d-80be-5bc12c5de1d2" />
 
 > **Lưu ý cú pháp:** `Server=` dùng dấu `,` (phẩy). `ServerActive=` dùng dấu `;` (chấm phẩy) để phân cách các node **trong cùng một cluster**. Đây là quy tắc bắt buộc, dùng sai dấu sẽ Agent không nhận cấu hình đúng.
 
@@ -403,6 +424,7 @@ Server=192.168.197.148,192.168.197.149
 ServerActive=192.168.197.148;192.168.197.149
 Hostname=zabbix-node1
 ```
+<img width="799" height="465" alt="image" src="https://github.com/user-attachments/assets/3d26cee4-30f2-4e3d-985d-0055019f2d43" />
 
 ```bash
 sudo systemctl restart zabbix-agent
@@ -424,6 +446,7 @@ Node name      Address                    Status    Last access
 zabbix-node1   192.168.197.148:10051     active    2s ago
 zabbix-node2   192.168.197.149:10051     standby   3s ago
 ```
+<img width="1701" height="197" alt="image" src="https://github.com/user-attachments/assets/4701fc12-e76f-433c-9eee-a6d31bb4c80b" />
 
 ### 9.2 Kiểm Tra qua Command Line
 
@@ -443,6 +466,8 @@ Cluster status:
 2. ckvjyjy4o0001xyz789uvw012  zabbix-node2  192.168.197.149:10051       standby   3s
 ```
 
+<img width="965" height="305" alt="image" src="https://github.com/user-attachments/assets/b792d6ae-93b9-499a-95ed-c5ac57b1e236" />
+
 ### 9.3 Kiểm Tra Log
 
 ```bash
@@ -455,6 +480,8 @@ sudo grep "HA" /var/log/zabbix/zabbix_server.log
 # Xem realtime trên Node 2
 sudo tail -f /var/log/zabbix/zabbix_server.log | grep -i "ha\|fail\|active\|standby"
 ```
+
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/9d6c1a3d-febb-4c6e-9bf3-3db03bb65f99" />
 
 ### 9.4 Kiểm Tra Tiến Trình HA Manager
 
@@ -518,10 +545,16 @@ Kết quả:
 1.      zabbix-node1  192.168.197.148:10051       stopped   75s
 2.      zabbix-node2  192.168.197.149:10051       active    1s
 ```
+sudo tail -f /var/log/zabbix/zabbix_server.log
+<img width="1698" height="837" alt="image" src="https://github.com/user-attachments/assets/eed350ba-48fb-43ae-9521-16feb2737356" />
+
+<img width="965" height="233" alt="image" src="https://github.com/user-attachments/assets/b91f36dc-7d85-45db-be8c-45436d736e0c" />
 
 ### 10.3 Kiểm Tra Frontend Sau Failover
 
 Truy cập lại `http://192.168.197.148/zabbix` — Frontend vẫn hoạt động bình thường vì nó tự tra cứu database để tìm node Active mới (Node 2). Không cần làm gì thêm.
+
+<img width="1920" height="921" alt="image" src="https://github.com/user-attachments/assets/23cb7c41-eeeb-4a7e-b00b-31b00a7ece29" />
 
 ### 10.4 Khôi Phục Node 1
 
@@ -539,6 +572,8 @@ HA manager started in standby mode
 
 Đây là hành vi đúng. Không có failback tự động để tránh flapping (dao động liên tục giữa hai node).
 
+<img width="1680" height="808" alt="image" src="https://github.com/user-attachments/assets/898bacec-e595-4765-974e-7582a0c47c00" />
+
 ### 10.5 Bảng Thời Gian Failover
 
 | Trường hợp | Thời gian failover |
@@ -555,6 +590,7 @@ HA manager started in standby mode
 ```bash
 sudo zabbix_server -R ha_status
 ```
+<img width="904" height="305" alt="image" src="https://github.com/user-attachments/assets/874ec96c-d770-4bbb-bfc0-50108e47044d" />
 
 ### Thay đổi Failover Delay
 
@@ -582,30 +618,3 @@ sudo zabbix_server -R ha_remove_node=zabbix-node1
 
 ---
 
-## Tóm Tắt Luồng Cấu Hình
-
-```
-[Node 1 — 192.168.197.148]
-1. Cấp quyền DB cho Node 2: CREATE USER 'zabbix'@'192.168.197.149'
-2. Sửa bind-address MariaDB → 0.0.0.0, mở port 3306 cho Node 2
-3. Thêm HANodeName=zabbix-node1 và NodeAddress=192.168.197.148:10051 vào zabbix_server.conf
-4. Restart zabbix-server → lên Active
-5. Sửa zabbix.conf.php: comment out $ZBX_SERVER và $ZBX_SERVER_PORT
-6. Restart apache2
-
-[Node 2 — 192.168.197.149]
-7. Cài zabbix-server-mysql và zabbix-frontend-php (KHÔNG import schema)
-8. Sửa zabbix_server.conf: DBHost=192.168.197.148, HANodeName=zabbix-node2, NodeAddress=192.168.197.149:10051
-9. Mở port 10051/tcp
-10. Start zabbix-server → lên Standby
-11. Cập nhật zabbix_agentd.conf: Server= và ServerActive= trỏ cả hai node
-
-[Kiểm tra]
-12. Web UI → Reports → System information → thấy hai node active + standby
-13. zabbix_server -R ha_status trên bất kỳ node nào
-14. Test failover: stop zabbix-server trên Node 1, quan sát Node 2 lên Active
-```
-
----
-
-*Tài liệu áp dụng cho Zabbix 6.0 trở lên (kiểm tra với 7.2). Database HA không nằm trong phạm vi lab 2 máy này.*
