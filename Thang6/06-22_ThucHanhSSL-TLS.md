@@ -109,7 +109,6 @@ sau khi thiết lập, trang web đã được cấp chứng chỉ
 
 <img width="1920" height="812" alt="image" src="https://github.com/user-attachments/assets/32b76d79-594a-411a-9d67-7455f3a347e4" />
 
-Dưới đây là bản trình bày chi tiết theo định dạng văn bản báo cáo kỹ thuật. Bạn có thể sử dụng cấu trúc này để đưa trực tiếp vào tài liệu thực hành hoặc báo cáo bài tập của mình.
 
 ---
 
